@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="nl" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Globetrotter SaaS - Multi-Trip & Expense Planner</title>
+
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Alles-in-één reisplanner en uitgaven verrekenaar voor reizigers en organisaties.">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet.js OpenStreetMap CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        @media print {
+            header, nav, .no-print, button, #saas-banner { display: none !important; }
+            body { background: white !important; color: black !important; }
+            .tab-content { display: block !important; }
+            .glass-card { background: white !important; border: 1px solid #ccc !important; color: black !important; }
+        }
+    </style>
+</head>
+<body class="h-full text-slate-100 flex flex-col bg-slate-950 selection:bg-sky-500 selection:text-white pb-20 md:pb-6">
+
+    <!-- TOP SAAS TOP-BAR BANNER -->
+    <div id="saas-banner" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-slate-800 text-[11px] px-4 py-1.5 flex flex-wrap justify-between items-center gap-2 z-50">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
+                <i data-lucide="globe" class="w-3 h-3"></i>
+                <span id="tenant-domain-display">app.globetrotter.io/org_8921</span>
+            </span>
+            <span class="text-slate-400 border-l border-slate-800 pl-3 hidden sm:inline">
+                Abonnement: <strong id="current-plan-display" class="text-amber-400 font-semibold">Pro SaaS Plan</strong>
+            </span>
+            <span class="text-slate-400 border-l border-slate-800 pl-3">
+                Rol: <strong id="current-role-display" class="text-sky-400 font-semibold">Workspace Eigenaar</strong>
+            </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="openSaaSPricingModal()" class="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded border border-amber-500/40 transition flex items-center gap-1 font-semibold">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>Upgrade / Billing</span>
+            </button>
+            <button onclick="openRoleSimulatorModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition flex items-center gap-1">
+                <i data-lucide="shield-check" class="w-3 h-3 text-sky-400"></i>
+                <span>Rollen & Rechten</span>
+            </button>
+            <button onclick="openWhiteLabelModal()" class="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-800/60 text-indigo-300 rounded border border-indigo-700/60 transition flex items-center gap-1">
+                <i data-lucide="palette" class="w-3 h-3"></i>
+                <span class="hidden sm:inline">White-Label Branding</span>
+            </button>
+            <button onclick="openSaaSMetricsModal()" class="px-2 py-1 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 rounded border border-emerald-800/80 transition flex items-center gap-1">
+                <i data-lucide="bar-chart-3" class="w-3 h-3"></i>
+                <span class="hidden sm:inline">SaaS Analytics</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- PIN SECURITY LOCK SCREEN -->
+    <div id="pin-lock-screen" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl">
+            <div class="w-16 h-16 bg-sky-500/20 text-sky-400 rounded-2xl border border-sky-500/30 flex items-center justify-center mx-auto">
+                <i data-lucide="lock" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-extrabold text-white">Reisplanner Beveiligd</h2>
+                <p class="text-xs text-slate-400 mt-1">Voer je ingestelde PIN-code in om toegang te krijgen.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="password" id="pin-input" maxlength="6" placeholder="••••" class="w-full bg-slate-950 border border-slate-700 text-center text-2xl tracking-widest font-mono rounded-2xl py-3 text-white focus:outline-none focus:border-sky-500" onkeyup="if(event.key==='Enter') unlockApp()">
+                <button onclick="unlockApp()" class="w-full py-3 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-sm transition shadow-lg shadow-sky-500/20">
+                    Ontgrendelen
+                </button>
+                <p id="pin-error" class="text-xs text-rose-400 font-semibold hidden">Ongeldige PIN-code!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVIGATION HEADER -->
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- App Title & Multi-Trip Selector -->
+                <div class="flex items-center space-x-3">
+                    <div id="app-logo-box" class="p-2.5 bg-gradient-to-tr from-sky-600 to-indigo-600 rounded-xl shadow-lg shadow-sky-500/20 text-white flex items-center justify-center">
+                        <i data-lucide="compass" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span id="app-brand-name" class="font-extrabold text-sm sm:text-base tracking-tight text-white">Globetrotter</span>
+                            
+                            <!-- Multi-Trip Switcher Dropdown -->
+                            <select id="trip-selector" onchange="switchTrip(this.value)" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none focus:border-sky-500">
+                                <!-- Injected dynamically -->
+                            </select>
+                            
+                            <button id="add-trip-btn" onclick="openAddTripModal()" title="Nieuwe Reis Toevoegen" class="p-1.5 bg-sky-600/80 hover:bg-sky-500 border border-sky-500/40 text-white rounded-lg text-xs flex items-center gap-1 transition">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                <span class="hidden sm:inline">Nieuwe Reis</span>
+                            </button>
+                        </div>
+                        <p id="trip-subtitle-text" class="text-[11px] text-slate-400 hidden sm:block">Wereldwijde Reis- & Expense Manager</p>
+                    </div>
+                </div>
+
+                <!-- Live Countdown & Quick Action Menu -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Countdown Badge -->
+                    <div class="bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-semibold text-slate-200">
+                        <i data-lucide="timer" class="w-4 h-4 text-sky-400"></i>
+                        <span id="countdown-text" class="text-sky-300 font-mono">Laden...</span>
+                    </div>
+
+                    <!-- Actions Dropdown -->
+                    <div class="relative group">
+                        <button class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition flex items-center gap-1 text-xs">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
+                        <div class="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-2 hidden group-hover:block z-50">
+                            <button onclick="exportTravelPDF()" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                                <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i> Export PDF Reisdossier
+                            </button>
+                            <button onclick="exportAllCSV()" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Exporteer CSV (Excel/Sheets)
+                            </button>
+                            <button onclick="openSecuritySettingsModal()" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                                <i data-lucide="lock" class="w-4 h-4 text-sky-400"></i> PIN Beveiliging
+                            </button>
+                            <button onclick="exportJSON()" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4 text-indigo-400"></i> Backup JSON Exporteren
+                            </button>
+                            <label class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                                <i data-lucide="upload" class="w-4 h-4 text-purple-400"></i> Backup JSON Importeren
+                                <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
+                            </label>
+                            <button onclick="promptResetTrip()" class="w-full text-left px-4 py-2 text-xs text-rose-400 hover:bg-rose-950/40 flex items-center gap-2 border-t border-slate-800 mt-1 pt-2">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i> Huidige Reis Verwijderen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DESKTOP NAVIGATION TABS -->
+            <nav class="hidden md:flex space-x-1 overflow-x-auto pb-2 scrollbar-none text-xs font-semibold border-t border-slate-800/80 pt-2">
+                <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 bg-sky-600 text-white">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+                </button>
+                <button onclick="switchTab('planning')" id="tab-btn-planning" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="calendar" class="w-4 h-4"></i> Planning
+                </button>
+                <button onclick="switchTab('map')" id="tab-btn-map" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i> Routekaart
+                </button>
+                <button onclick="switchTab('kosten')" id="tab-btn-kosten" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="credit-card" class="w-4 h-4"></i> Uitgaven
+                </button>
+                <button onclick="switchTab('groupie')" id="tab-btn-groupie" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="users" class="w-4 h-4"></i> Groupie (Split)
+                </button>
+                <button onclick="switchTab('budget')" id="tab-btn-budget" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="pie-chart" class="w-4 h-4"></i> Budget
+                </button>
+                <button onclick="switchTab('boekingen')" id="tab-btn-boekingen" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="bookmark" class="w-4 h-4"></i> Boekingen
+                </button>
+                <button onclick="switchTab('checklist')" id="tab-btn-checklist" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="check-square" class="w-4 h-4"></i> Checklist
+                </button>
+                <button onclick="switchTab('reisinfo')" id="tab-btn-reisinfo" class="tab-btn px-3 py-2 rounded-lg transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="shield-alert" class="w-4 h-4"></i> Valuta & Gids
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- 1. DASHBOARD TAB -->
+        <div id="tab-dashboard" class="tab-content active space-y-6">
+            <!-- Hero Trip Header Card & Weather Widget -->
+            <div class="bg-gradient-to-r from-sky-950/60 via-indigo-950/50 to-slate-900/80 border border-sky-500/20 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
+                <div class="flex items-center gap-4">
+                    <div class="p-3.5 bg-sky-500/20 text-sky-400 rounded-2xl border border-sky-500/30">
+                        <i id="dash-trip-icon" data-lucide="plane" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-extrabold text-slate-100 text-lg sm:text-xl" id="dash-trip-title">Laden...</h3>
+                            <span id="dash-trip-type-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase">
+                                Roadtrip
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5" id="dash-trip-desc">Laden...</p>
+                    </div>
+                </div>
+
+                <!-- Global Weather Live Widget & Travelers counter -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div id="weather-widget" class="bg-slate-900/90 border border-slate-700/80 px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-xs">
+                        <i data-lucide="cloud-sun" class="w-5 h-5 text-amber-400"></i>
+                        <div>
+                            <span id="weather-location" class="font-semibold text-slate-200 block text-[11px]">Zoeken...</span>
+                            <span id="weather-temp" class="text-sky-300 font-mono font-bold text-xs">Ophalen...</span>
+                        </div>
+                    </div>
+                    <div onclick="openManageReizigersModal()" class="cursor-pointer flex items-center gap-2 text-xs bg-slate-900/80 hover:bg-slate-800 px-3 py-2 rounded-xl border border-slate-700/60 font-mono text-sky-300 transition">
+                        <i data-lucide="users" class="w-4 h-4 text-sky-400"></i>
+                        <span id="dash-reizigers-count">0 Reizigers</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts & Key Metrics Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Expenses Breakdown Chart -->
+                <div class="glass-card rounded-2xl p-5 lg:col-span-2 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-sky-400"></i> Uitgaven per Categorie
+                        </h3>
+                        <span class="text-[11px] text-slate-400">Live Bijgewerkt</span>
+                    </div>
+                    <div class="h-64 relative flex items-center justify-center">
+                        <canvas id="dashboardCategoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Groupie Quick Settlement Widget -->
+                <div class="glass-card rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                            <i data-lucide="arrow-right-left" class="w-4 h-4 text-amber-400"></i> Groupie Tikkies & Verrekening
+                        </h3>
+                        <div id="dash-settlement-card" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700/80 text-center space-y-2">
+                            <!-- Dynamic settlement -->
+                        </div>
+                    </div>
+
+                    <button onclick="switchTab('groupie')" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border border-slate-700 transition">
+                        Bekijk Alle Groupie Transacties <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. PLANNING TAB -->
+        <div id="tab-planning" class="tab-content space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                <div>
+                    <h2 class="text-base font-bold text-white">Dag-tot-dag Reisplanning & Itinerary</h2>
+                    <p class="text-xs text-slate-400">Beheer de dagelijkse route, stopovers en activiteiten wereldwijd.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input type="text" id="planning-search" oninput="renderPlanning()" placeholder="Zoek op plaats of activiteit..." class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500 w-full sm:w-48">
+                    <button onclick="openAddDayModal()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/20">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Dag Toevoegen
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl overflow-hidden border border-slate-800">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Datum</th>
+                                <th class="p-3">Dag</th>
+                                <th class="p-3">Plaats & Land</th>
+                                <th class="p-3">Activiteit / Route</th>
+                                <th class="p-3">Van → Naar</th>
+                                <th class="p-3">Navigatie</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3 text-center">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planning-tbody" class="divide-y divide-slate-800/60">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. INTERACTIVE ROUTE MAP TAB -->
+        <div id="tab-map" class="tab-content space-y-4">
+            <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-sky-400"></i> Wereldwijde Interactive Routekaart
+                    </h2>
+                    <p class="text-xs text-slate-400">Automatische geocoding en OpenStreetMap route visualisatie voor elke locatie ter wereld.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="refreshRouteMap()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Ververs Kaart Pins
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-2 border border-slate-800">
+                <div id="trip-leaflet-map" class="w-full h-[520px] rounded-xl z-10"></div>
+            </div>
+        </div>
+
+        <!-- 4. EXPENSES TAB -->
+        <div id="tab-kosten" class="tab-content space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                <div>
+                    <h2 class="text-base font-bold text-white">Centrale Uitgavenadministratie</h2>
+                    <p class="text-xs text-slate-400">Registreer al je uitgaven in willekeurige wereldvaluta's met live omrekening naar EUR.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openAddKostenModal()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/20">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Uitgave Toevoegen
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl overflow-hidden border border-slate-800">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Omschrijving</th>
+                                <th class="p-3">Categorie</th>
+                                <th class="p-3">Voorgeschoten door</th>
+                                <th class="p-3 text-right">Origineel Bedrag</th>
+                                <th class="p-3 text-right">Omgerekend (€)</th>
+                                <th class="p-3 text-center">Verdeeld over</th>
+                                <th class="p-3 text-center">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kosten-tbody" class="divide-y divide-slate-800/60">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. GROUPIE EXPENSE SPLITTER TAB -->
+        <div id="tab-groupie" class="tab-content space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 glass-card p-4 rounded-2xl">
+                <div>
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <i data-lucide="users" class="w-5 h-5 text-sky-400"></i> Groupie Expense Splitter (Splitwise SaaS Module)
+                    </h2>
+                    <p class="text-xs text-slate-400">Bereken automatisch minimale transacties tussen reizigers om ieders saldo exact op €0 te brengen.</p>
+                </div>
+                <button onclick="openManageReizigersModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i> Reizigers Beheren
+                </button>
+            </div>
+
+            <!-- Minimum Transfers Result Banner -->
+            <div class="glass-card p-6 rounded-2xl border border-sky-500/20 shadow-xl space-y-4">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="send" class="w-4 h-4 text-amber-400"></i> Voorgestelde Tikkies & Verrekeningen
+                </h3>
+                <div id="groupie-transfers-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Dynamic transfers -->
+                </div>
+            </div>
+
+            <!-- Per Person Breakdown Grid -->
+            <div id="groupie-persons-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+
+        <!-- 6. BUDGET TAB -->
+        <div id="tab-budget" class="tab-content space-y-6">
+            <div class="glass-card p-4 rounded-2xl">
+                <h2 class="text-base font-bold text-white">Budget vs. Werkelijke Uitgaven</h2>
+                <p class="text-xs text-slate-400">Vergelijk het vooraf ingestelde streefbudget per categorie met de feitelijke kosten.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Budget Chart -->
+                <div class="glass-card rounded-2xl p-5 lg:col-span-2 space-y-4">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i data-lucide="bar-chart-2" class="w-4 h-4 text-sky-400"></i> Budget Vergelijking
+                    </h3>
+                    <div class="h-64 relative">
+                        <canvas id="budgetvsActualChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Budget Table -->
+                <div class="glass-card rounded-2xl p-4 overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="p-2">Categorie</th>
+                                <th class="p-2 text-right">Budget (€)</th>
+                                <th class="p-2 text-right">Werkelijk (€)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-tbody" class="divide-y divide-slate-800/60">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. BOOKINGS TAB -->
+        <div id="tab-boekingen" class="tab-content space-y-4">
+            <div class="flex justify-between items-center glass-card p-4 rounded-2xl">
+                <div>
+                    <h2 class="text-base font-bold text-white">Boekingen, Vluchten & Reserveringen</h2>
+                    <p class="text-xs text-slate-400">Beheer vliegtickets, hotels, autohuur, treinen en excursie-vouchers.</p>
+                </div>
+                <button onclick="openAddBoekingModal()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Boeking Toevoegen
+                </button>
+            </div>
+
+            <div class="glass-card rounded-2xl overflow-hidden border border-slate-800">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Leverancier / Maatschappij</th>
+                                <th class="p-3">Datum</th>
+                                <th class="p-3">Van → Naar / Locatie</th>
+                                <th class="p-3 text-right">Kosten (€)</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3 text-center">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody id="boekingen-tbody" class="divide-y divide-slate-800/60">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. CHECKLIST TAB -->
+        <div id="tab-checklist" class="tab-content space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 glass-card p-4 rounded-2xl">
+                <div>
+                    <h2 class="text-base font-bold text-white">Paklijst & Voorbereiding Checklist</h2>
+                    <p class="text-xs text-slate-400">Houd bij wat je nog moet inpakken of regelen voor vertrek.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openChecklistTemplateModal()" class="px-3 py-1.5 bg-indigo-600/80 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i> Type Reis Sjabloon
+                    </button>
+                    <button onclick="openAddChecklistItemModal()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Item Toevoegen
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+                <div id="checklist-items-container" class="space-y-2">
+                    <!-- Dynamic checklist -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 9. REISINFO & VALUTA TAB -->
+        <div id="tab-reisinfo" class="tab-content space-y-6">
+            <div class="glass-card p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-white">Wereldwijde Valuta Omrekenaar & Noodgids</h2>
+                    <p class="text-xs text-slate-400">Reken direct willekeurige vreemde valuta om naar Euro's.</p>
+                </div>
+            </div>
+
+            <!-- CURRENCY CONVERTER WIDGET -->
+            <div class="glass-card border border-slate-800 rounded-2xl p-5 space-y-4">
+                <h3 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+                    <i data-lucide="calculator" class="w-4 h-4"></i> Real-time Valuta Calculator
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Bedrag in Vreemde Valuta</label>
+                        <input type="number" id="curr-amount" value="100" oninput="calculateCurrency()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Selecteer Valuta</label>
+                        <select id="curr-type" onchange="calculateCurrency()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                            <option value="USD">USD - US Dollar ($)</option>
+                            <option value="SEK">SEK - Zweedse Kroon (kr)</option>
+                            <option value="NOK">NOK - Noorse Kroon (kr)</option>
+                            <option value="GBP">GBP - Britse Pond (£)</option>
+                            <option value="JPY">JPY - Japanse Yen (¥)</option>
+                            <option value="AUD">AUD - Australische Dollar ($)</option>
+                            <option value="CAD">CAD - Canadese Dollar ($)</option>
+                            <option value="CHF">CHF - Zwitserse Frank (CHF)</option>
+                            <option value="THB">THB - Thailands Baht (฿)</option>
+                            <option value="IDR">IDR - Indonesische Rupiah (Rp)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Geschat in Euro's (€)</label>
+                        <div id="curr-result" class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 text-sm font-bold text-emerald-400 font-mono">
+                            €92.00
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <h3 class="text-sm font-bold text-rose-400 flex items-center gap-2">
+                        <i data-lucide="phone-call" class="w-4 h-4"></i> Wereldwijde Noodnummers
+                    </h3>
+                    <ul class="text-xs text-slate-300 space-y-3 divide-y divide-slate-800">
+                        <li class="pt-2 flex justify-between items-center">
+                            <span>Algemeen Alarmnummer Europa / Wereld:</span> 
+                            <a href="tel:112" class="px-3 py-1 bg-rose-500/20 text-rose-300 font-bold rounded-lg border border-rose-500/30">112</a>
+                        </li>
+                        <li class="pt-2 flex justify-between items-center">
+                            <span>USA & Canada Emergency:</span> 
+                            <a href="tel:911" class="px-3 py-1 bg-rose-500/20 text-rose-300 font-bold rounded-lg border border-rose-500/30">911</a>
+                        </li>
+                        <li class="pt-2 flex justify-between items-center">
+                            <span>UK & Hong Kong Emergency:</span> 
+                            <a href="tel:999" class="px-3 py-1 bg-rose-500/20 text-rose-300 font-bold rounded-lg border border-rose-500/30">999</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="glass-card border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <h3 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Notities & Belangrijke Informatie
+                    </h3>
+                    <textarea id="info-notes" oninput="saveReisinfo()" rows="5" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-sky-500" placeholder="Paspoortnummers, polisnummer reisverzekering, autoverhuur notities..."></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 backdrop-blur-md z-40 px-2 py-1.5 flex justify-around text-[10px] font-semibold text-slate-400">
+        <button onclick="switchTab('dashboard')" id="mob-tab-dashboard" class="flex flex-col items-center py-1 text-sky-400">
+            <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+            <span>Home</span>
+        </button>
+        <button onclick="switchTab('planning')" id="mob-tab-planning" class="flex flex-col items-center py-1">
+            <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+            <span>Planning</span>
+        </button>
+        <button onclick="switchTab('map')" id="mob-tab-map" class="flex flex-col items-center py-1">
+            <i data-lucide="map-pin" class="w-5 h-5 mb-0.5"></i>
+            <span>Kaart</span>
+        </button>
+        <button onclick="switchTab('kosten')" id="mob-tab-kosten" class="flex flex-col items-center py-1">
+            <i data-lucide="credit-card" class="w-5 h-5 mb-0.5"></i>
+            <span>Uitgaven</span>
+        </button>
+        <button onclick="switchTab('groupie')" id="mob-tab-groupie" class="flex flex-col items-center py-1">
+            <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
+            <span>Groupie</span>
+        </button>
+        <button onclick="switchTab('checklist')" id="mob-tab-checklist" class="flex flex-col items-center py-1">
+            <i data-lucide="check-square" class="w-5 h-5 mb-0.5"></i>
+            <span>Checklist</span>
+        </button>
+    </nav>
+
+    <!-- GENERIC MODAL CONTAINER -->
+    <div id="app-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 id="modal-title" class="font-bold text-base text-white">Item Toevoegen</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="modal-body" class="space-y-3"></div>
+            <div id="modal-actions" class="flex justify-end gap-2 border-t border-slate-800 pt-3">
+                <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Annuleren</button>
+                <button id="modal-save-btn" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold">Opslaan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-msg" class="fixed top-20 right-4 bg-slate-900 border border-sky-500/40 text-sky-200 px-4 py-3 rounded-xl shadow-2xl z-50 text-xs flex items-center gap-2 transform translate-x-full transition-transform duration-300">
+        <i data-lucide="info" class="w-4 h-4 text-sky-400"></i>
+        <span id="toast-text">Bericht...</span>
+    </div>
+
+    <script>
+        // Global exchange rates vs EUR
+        const EXCHANGE_RATES = {
+            "EUR": 1.0,
+            "USD": 1.08,
+            "SEK": 11.45,
+            "NOK": 11.60,
+            "GBP": 0.85,
+            "JPY": 165.0,
+            "AUD": 1.64,
+            "CAD": 1.47,
+            "CHF": 0.95,
+            "THB": 38.5,
+            "IDR": 17200.0
+        };
+
+        // Default Initial Multi-Trip State
+        let tripsState = [
+            {
+                id: "trip-zweden-2026",
+                titel: "Zweden & Lapland Winter Expeditie",
+                type: "Roadtrip",
+                beschrijving: "Noorderlicht jagen, husky safari en ijs-hotel avontuur",
+                startDatum: "2026-02-10",
+                eindDatum: "2026-02-24",
+                reizigers: ["Jan", "Lisa", "Mark"],
+                planning: [
+                    { id: 1, datum: "2026-02-10", dag: "Dag 1", plaats: "Kiruna, Zweden", activiteit: "Aankomst Kiruna Airport, ophalen 4x4 huurauto", van: "Amsterdam", naar: "Kiruna", type: "Vlucht" },
+                    { id: 2, datum: "2026-02-11", dag: "Dag 2", plaats: "Jukkasjärvi, Zweden", activiteit: "Bezoek wereldberoemd Icehotel & sneeuwschoenwandeling", van: "Kiruna", naar: "Jukkasjärvi", type: "Activiteit" },
+                    { id: 3, datum: "2026-02-12", dag: "Dag 3", plaats: "Abisko, Zweden", activiteit: "Aurora Sky Station & Noorderlicht tour", van: "Jukkasjärvi", naar: "Abisko", type: "Excursie" }
+                ],
+                kosten: [
+                    { id: 101, omschrijving: "Vliegtickets SAS Amsterdam - Kiruna", categorie: "Vliegtickets", bedrag: 890.00, valuta: "EUR", omgerekendeEUR: 890.00, betaaldDoor: "Jan", verdeeldOver: ["Jan", "Lisa", "Mark"] },
+                    { id: 102, omschrijving: "Huurauto 4x4 All-Wheel Drive", categorie: "Vervoer", bedrag: 6500.00, valuta: "SEK", omgerekendeEUR: 567.68, betaaldDoor: "Lisa", verdeeldOver: ["Jan", "Lisa", "Mark"] },
+                    { id: 103, omschrijving: "Sneeuwscooter Safari Tour", categorie: "Excursies", bedrag: 3400.00, valuta: "SEK", omgerekendeEUR: 296.94, betaaldDoor: "Mark", verdeeldOver: ["Jan", "Lisa", "Mark"] }
+                ],
+                budget: { "Vliegtickets": 900, "Vervoer": 600, "Verblijf": 1200, "Eten & Drinken": 700, "Excursies": 400 },
+                boekingen: [
+                    { id: 201, type: "Vlucht", leverancier: "SAS Scandinavian Airlines", datum: "2026-02-10", vanNaar: "AMS → KRN", bedrag: 890.00, isGeboekt: true },
+                    { id: 202, type: "Hotel", leverancier: "Icehotel Jukkasjärvi", datum: "2026-02-11", vanNaar: "Jukkasjärvi", bedrag: 450.00, isGeboekt: true }
+                ],
+                checklist: [
+                    { id: 301, text: "Thermokleding en wollen sokken inpakken", done: true },
+                    { id: 302, text: "Internationaal rijbewijs & creditcard meenemen", done: false },
+                    { id: 303, text: "Hand- en voetwarmers bestellen", done: true }
+                ],
+                reisinfoNotes: "SAS Vluchtnummer SK1524. Reservering huurauto bij Hertz Kiruna Airport onder nummer HZ-88912."
+            },
+            {
+                id: "trip-japan-2026",
+                titel: "Japan Cherry Blossom & High-Speed Train Tour",
+                type: "Stedentrip",
+                beschrijving: "Tokio, Kioto, Osaka & Mount Fuji rondreis",
+                startDatum: "2026-04-05",
+                eindDatum: "2026-04-20",
+                reizigers: ["Jan", "Lisa"],
+                planning: [
+                    { id: 1, datum: "2026-04-05", dag: "Dag 1", plaats: "Tokyo, Japan", activiteit: "Aankomst Tokyo Narita, ophalen Japan Rail Pass", van: "Amsterdam", naar: "Tokyo", type: "Vlucht" },
+                    { id: 2, datum: "2026-04-09", dag: "Dag 5", plaats: "Kyoto, Japan", activiteit: "Fushimi Inari Shrine & Gion Geisha district", van: "Tokyo", naar: "Kyoto", type: "Cultuur" }
+                ],
+                kosten: [
+                    { id: 101, omschrijving: "Vliegtickets KLM Tokyo Narita Return", categorie: "Vliegtickets", bedrag: 1950.00, valuta: "EUR", omgerekendeEUR: 1950.00, betaaldDoor: "Jan", verdeeldOver: ["Jan", "Lisa"] },
+                    { id: 102, omschrijving: "7-Day Japan Rail Pass", categorie: "Vervoer", bedrag: 100000.00, valuta: "JPY", omgerekendeEUR: 606.06, betaaldDoor: "Lisa", verdeeldOver: ["Jan", "Lisa"] }
+                ],
+                budget: { "Vliegtickets": 2000, "Vervoer": 700, "Verblijf": 1800, "Eten & Drinken": 900, "Excursies": 500 },
+                boekingen: [
+                    { id: 201, type: "Vlucht", leverancier: "KLM Royal Dutch Airlines", datum: "2026-04-05", vanNaar: "AMS → NRT", bedrag: 1950.00, isGeboekt: true }
+                ],
+                checklist: [
+                    { id: 301, text: "Visit Japan Web QR-codes genereren", done: false },
+                    { id: 302, text: "Pocket WiFi / e-SIM bestellen", done: true }
+                ],
+                reisinfoNotes: "Paspoort geldig tot 2029. JR Pass omwisselen op Narita Airport Terminal 1."
+            }
+        ];
+
+        let currentTripId = "trip-zweden-2026";
+        let activeRole = "Owner"; 
+        let activePlan = "Pro"; 
+        let appLockPin = null;
+        let leafletMapInstance = null;
+        let categoryChartInstance = null;
+        let budgetChartInstance = null;
+
+        let brandingConfig = {
+            appName: "Globetrotter",
+            accentColor: "#0ea5e9"
+        };
+
+        function initStorage() {
+            const savedTrips = localStorage.getItem("gt_saas_trips");
+            if (savedTrips) {
+                try { tripsState = JSON.parse(savedTrips); } catch(e){}
+            }
+            const savedCurrentId = localStorage.getItem("gt_saas_current_id");
+            if (savedCurrentId && tripsState.find(t => t.id === savedCurrentId)) {
+                currentTripId = savedCurrentId;
+            } else if (tripsState.length > 0) {
+                currentTripId = tripsState[0].id;
+            }
+            const savedPin = localStorage.getItem("gt_saas_pin");
+            if (savedPin) {
+                appLockPin = savedPin;
+                document.getElementById('pin-lock-screen').classList.remove('hidden');
+            }
+            saveStorage();
+        }
+
+        function saveStorage() {
+            localStorage.setItem("gt_saas_trips", JSON.stringify(tripsState));
+            localStorage.setItem("gt_saas_current_id", currentTripId);
+        }
+
+        function getCurrentTrip() {
+            return tripsState.find(t => t.id === currentTripId) || tripsState[0];
+        }
+
+        function renderTripSelector() {
+            const select = document.getElementById('trip-selector');
+            if (!select) return;
+            select.innerHTML = '';
+            tripsState.forEach(trip => {
+                const opt = document.createElement('option');
+                opt.value = trip.id;
+                opt.textContent = `${trip.titel}`;
+                if (trip.id === currentTripId) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            const trip = getCurrentTrip();
+            if (trip) {
+                document.getElementById('dash-trip-title').innerText = trip.titel;
+                document.getElementById('dash-trip-desc').innerText = trip.beschrijving || 'Geen beschrijving ingevoerd';
+                document.getElementById('dash-reizigers-count').innerText = `${trip.reizigers.length} Reizigers`;
+                document.getElementById('dash-trip-type-badge').innerText = trip.type || 'Roadtrip';
+                
+                updateCountdown(trip.startDatum);
+            }
+        }
+
+        function switchTrip(newId) {
+            currentTripId = newId;
+            saveStorage();
+            renderAllViews();
+            showToast(`Reis gewijzigd naar "${getCurrentTrip().titel}"`);
+        }
+
+        function updateCountdown(startDateStr) {
+            const cdEl = document.getElementById('countdown-text');
+            if (!cdEl || !startDateStr) return;
+            const start = new Date(startDateStr);
+            const now = new Date();
+            const diffTime = start - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays > 0) {
+                cdEl.innerText = `Nog ${diffDays} dagen tot vertrek!`;
+            } else if (diffDays === 0) {
+                cdEl.innerText = `🎉 Vandaag is het zover! Vertrek!`;
+            } else {
+                cdEl.innerText = `Reis is gestart / afgerond`;
+            }
+        }
+
+        function renderDashboard() {
+            const trip = getCurrentTrip();
+            if (!trip) return;
+
+            const totalsByCategory = {};
+            trip.kosten.forEach(k => {
+                const cat = k.categorie || "Overig";
+                totalsByCategory[cat] = (totalsByCategory[cat] || 0) + (k.omgerekendeEUR || k.bedrag || 0);
+            });
+
+            const labels = Object.keys(totalsByCategory);
+            const dataValues = Object.values(totalsByCategory);
+
+            const ctx = document.getElementById('dashboardCategoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.length ? labels : ['Geen Uitgaven'],
+                    datasets: [{
+                        data: dataValues.length ? dataValues : [1],
+                        backgroundColor: ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#cbd5e1', font: { family: 'Plus Jakarta Sans', size: 11 } } }
+                    }
+                }
+            });
+
+            renderGroupieSettlementSummary();
+            fetchDestinationWeather();
+        }
+
+        function computeGroupieBalances() {
+            const trip = getCurrentTrip();
+            if (!trip) return { balances: {}, totalTripCost: 0, transfers: [] };
+
+            const balances = {};
+            trip.reizigers.forEach(r => balances[r] = 0);
+
+            let totalTripCost = 0;
+
+            trip.kosten.forEach(k => {
+                const amount = k.omgerekendeEUR || k.bedrag || 0;
+                totalTripCost += amount;
+
+                const payer = k.betaaldDoor;
+                if (balances[payer] !== undefined) {
+                    balances[payer] += amount;
+                }
+
+                const beneficiaries = k.verdeeldOver && k.verdeeldOver.length ? k.verdeeldOver : trip.reizigers;
+                const splitShare = amount / beneficiaries.length;
+                beneficiaries.forEach(b => {
+                    if (balances[b] !== undefined) {
+                        balances[b] -= splitShare;
+                    }
+                });
+            });
+
+            const debtors = [];
+            const creditors = [];
+
+            Object.keys(balances).forEach(person => {
+                const bal = balances[person];
+                if (bal < -0.01) debtors.push({ name: person, amount: -bal });
+                else if (bal > 0.01) creditors.push({ name: person, amount: bal });
+            });
+
+            debtors.sort((a, b) => b.amount - a.amount);
+            creditors.sort((a, b) => b.amount - a.amount);
+
+            const transfers = [];
+            let i = 0, j = 0;
+
+            while (i < debtors.length && j < creditors.length) {
+                const debt = debtors[i].amount;
+                const cred = creditors[j].amount;
+                const settled = Math.min(debt, cred);
+
+                transfers.push({
+                    van: debtors[i].name,
+                    naar: creditors[j].name,
+                    bedrag: settled
+                });
+
+                debtors[i].amount -= settled;
+                creditors[j].amount -= settled;
+
+                if (debtors[i].amount < 0.01) i++;
+                if (creditors[j].amount < 0.01) j++;
+            }
+
+            return { balances, totalTripCost, transfers };
+        }
+
+        function renderGroupieSettlementSummary() {
+            const { transfers } = computeGroupieBalances();
+            const card = document.getElementById('dash-settlement-card');
+            if (!card) return;
+
+            if (transfers.length === 0) {
+                card.innerHTML = `<p class="text-xs text-emerald-400 font-semibold">✅ Alle kosten zijn momenteel gelijk verdeeld!</p>`;
+            } else {
+                let html = `<div class="space-y-1.5 text-left text-xs">`;
+                transfers.forEach(t => {
+                    html += `
+                        <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-slate-800">
+                            <span class="text-slate-300"><strong>${t.van}</strong> → <strong>${t.naar}</strong></span>
+                            <span class="font-mono font-bold text-amber-400">€${t.bedrag.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                card.innerHTML = html;
+            }
+        }
+
+        function renderGroupieTab() {
+            const { balances, totalTripCost, transfers } = computeGroupieBalances();
+
+            const transfersContainer = document.getElementById('groupie-transfers-container');
+            if (transfersContainer) {
+                if (transfers.length === 0) {
+                    transfersContainer.innerHTML = `<div class="col-span-2 text-center py-4 text-xs text-slate-400">Geen Tikkies of verrekeningen nodig op dit moment.</div>`;
+                } else {
+                    transfersContainer.innerHTML = transfers.map(t => `
+                        <div class="bg-slate-900/90 p-3.5 rounded-xl border border-amber-500/30 flex justify-between items-center">
+                            <div class="flex items-center gap-2 text-xs text-slate-200">
+                                <i data-lucide="send" class="w-4 h-4 text-amber-400"></i>
+                                <span><strong>${t.van}</strong> moet overmaken aan <strong>${t.naar}</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-sm font-bold text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/20">€${t.bedrag.toFixed(2)}</span>
+                                <button onclick="sharePaymentLink('${t.van}', '${t.naar}', ${t.bedrag.toFixed(2)})" title="Betaalverzoek Delen" class="p-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition">
+                                    <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            const grid = document.getElementById('groupie-persons-grid');
+            if (grid) {
+                const trip = getCurrentTrip();
+                grid.innerHTML = trip.reizigers.map(r => {
+                    const bal = balances[r] || 0;
+                    const statusClass = bal >= 0 ? 'text-emerald-400 border-emerald-500/30' : 'text-rose-400 border-rose-500/30';
+                    const statusText = bal >= 0 ? `Krijgt terug: €${bal.toFixed(2)}` : `Moet betalen: €${Math.abs(bal).toFixed(2)}`;
+                    
+                    return `
+                        <div class="glass-card rounded-2xl p-4 border space-y-3 ${statusClass}">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                                    <i data-lucide="user" class="w-4 h-4 text-sky-400"></i> ${r}
+                                </h4>
+                                <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${statusClass}">
+                                    ${statusText}
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Status in deze trip: ${bal >= 0 ? 'Voorgeschoten geld' : 'Openstaand saldo'}</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+            lucide.createIcons();
+        }
+
+        function sharePaymentLink(van, naar, bedrag) {
+            const text = `Hoi ${van}, zou je €${bedrag} willen overmaken aan ${naar} voor de kosten van onze trip "${getCurrentTrip().titel}"? Bedankt!`;
+            if (navigator.share) {
+                navigator.share({ title: 'Betaalverzoek Globetrotter', text: text });
+            } else {
+                navigator.clipboard.writeText(text);
+                showToast("Betaalverzoek gekopieerd naar klembord!");
+            }
+        }
+
+        function renderPlanning() {
+            const trip = getCurrentTrip();
+            const tbody = document.getElementById('planning-tbody');
+            if (!tbody || !trip) return;
+
+            const searchQuery = (document.getElementById('planning-search')?.value || '').toLowerCase();
+
+            const filtered = trip.planning.filter(day => {
+                return day.plaats.toLowerCase().includes(searchQuery) || 
+                       day.activiteit.toLowerCase().includes(searchQuery) ||
+                       day.dag.toLowerCase().includes(searchQuery);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-500">Geen planning gepland voor deze criteria.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(day => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="p-3 font-mono text-slate-400">${day.datum}</td>
+                    <td class="p-3 font-semibold text-sky-300">${day.dag}</td>
+                    <td class="p-3 font-bold text-white">${day.plaats}</td>
+                    <td class="p-3 text-slate-300">${day.activiteit}</td>
+                    <td class="p-3 text-slate-400">${day.van || '-'} → ${day.naar || '-'}</td>
+                    <td class="p-3">
+                        ${day.van && day.naar ? `
+                            <button onclick="openGoogleMapsRoute('${day.van}', '${day.naar}')" class="px-2 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 rounded border border-sky-800/80 text-[11px] flex items-center gap-1">
+                                <i data-lucide="navigation" class="w-3 h-3"></i> Route
+                            </button>
+                        ` : '-'}
+                    </td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 border border-slate-700">${day.type || 'Dag'}</span></td>
+                    <td class="p-3 text-center">
+                        <button onclick="deletePlanningDay(${day.id})" class="p-1 hover:bg-rose-950/50 text-rose-400 rounded"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function openGoogleMapsRoute(van, naar) {
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(van)}&destination=${encodeURIComponent(naar)}`;
+            window.open(url, '_blank');
+        }
+
+        async function fetchCoordinates(placeName) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeName)}`);
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        async function initOrUpdateMap() {
+            const mapContainer = document.getElementById('trip-leaflet-map');
+            if (!mapContainer) return;
+
+            const trip = getCurrentTrip();
+            if (!leafletMapInstance) {
+                leafletMapInstance = L.map('trip-leaflet-map').setView([20.0, 0.0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(leafletMapInstance);
+            }
+
+            leafletMapInstance.eachLayer((layer) => {
+                if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                    leafletMapInstance.removeLayer(layer);
+                }
+            });
+
+            if (!trip || !trip.planning || trip.planning.length === 0) return;
+
+            const latLngs = [];
+
+            for (let i = 0; i < trip.planning.length; i++) {
+                const day = trip.planning[i];
+                const coords = await fetchCoordinates(day.plaats);
+                if (coords) {
+                    latLngs.push(coords);
+                    L.marker(coords).addTo(leafletMapInstance)
+                        .bindPopup(`<strong>${day.dag} (${day.datum})</strong><br><b>${day.plaats}</b><br><span class="text-xs">${day.activiteit}</span>`);
+                }
+            }
+
+            if (latLngs.length > 0) {
+                L.polyline(latLngs, { color: '#0ea5e9', weight: 4, opacity: 0.8, dashArray: '6, 8' }).addTo(leafletMapInstance);
+                leafletMapInstance.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50] });
+            }
+        }
+
+        function refreshRouteMap() {
+            setTimeout(() => {
+                if (leafletMapInstance) {
+                    leafletMapInstance.invalidateSize();
+                }
+                initOrUpdateMap();
+            }, 250);
+        }
+
+        function renderKosten() {
+            const trip = getCurrentTrip();
+            const tbody = document.getElementById('kosten-tbody');
+            if (!tbody || !trip) return;
+
+            if (trip.kosten.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">Nog geen uitgaven ingevoerd.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = trip.kosten.map(k => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="p-3 font-semibold text-white">${k.omschrijving}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-sky-300 border border-slate-700">${k.categorie}</span></td>
+                    <td class="p-3 text-slate-300 font-medium">${k.betaaldDoor}</td>
+                    <td class="p-3 text-right font-mono text-slate-400">${k.valuta} ${k.bedrag.toFixed(2)}</td>
+                    <td class="p-3 text-right font-mono font-bold text-emerald-400">€${(k.omgerekendeEUR || k.bedrag).toFixed(2)}</td>
+                    <td class="p-3 text-center text-slate-400">${(k.verdeeldOver || []).join(', ')}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteKostenItem(${k.id})" class="p-1 hover:bg-rose-950/50 text-rose-400 rounded"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function renderBudget() {
+            const trip = getCurrentTrip();
+            if (!trip) return;
+
+            const tbody = document.getElementById('budget-tbody');
+            const categories = Object.keys(trip.budget || {});
+
+            const actuals = {};
+            trip.kosten.forEach(k => {
+                actuals[k.categorie] = (actuals[k.categorie] || 0) + (k.omgerekendeEUR || k.bedrag || 0);
+            });
+
+            if (tbody) {
+                tbody.innerHTML = categories.map(cat => {
+                    const budgeted = trip.budget[cat] || 0;
+                    const actual = actuals[cat] || 0;
+                    const isOver = actual > budgeted;
+
+                    return `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-2.5 font-semibold text-slate-200">${cat}</td>
+                            <td class="p-2.5 text-right font-mono text-slate-400">€${budgeted.toFixed(2)}</td>
+                            <td class="p-2.5 text-right font-mono font-bold ${isOver ? 'text-rose-400' : 'text-emerald-400'}">€${actual.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const ctx = document.getElementById('budgetvsActualChart')?.getContext('2d');
+            if (ctx) {
+                if (budgetChartInstance) budgetChartInstance.destroy();
+
+                budgetChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: categories,
+                        datasets: [
+                            { label: 'Geraamd Budget (€)', data: categories.map(c => trip.budget[c]), backgroundColor: 'rgba(14, 165, 233, 0.6)' },
+                            { label: 'Werkelijke Kosten (€)', data: categories.map(c => actuals[c] || 0), backgroundColor: 'rgba(236, 72, 153, 0.7)' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                        scales: {
+                            x: { ticks: { color: '#94a3b8' } },
+                            y: { ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        function renderBoekingen() {
+            const trip = getCurrentTrip();
+            const tbody = document.getElementById('boekingen-tbody');
+            if (!tbody || !trip) return;
+
+            if (trip.boekingen.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">Nog geen boekingen toegevoegd.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = trip.boekingen.map(b => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700/60 font-semibold">${b.type}</span></td>
+                    <td class="p-3 font-bold text-white">${b.leverancier}</td>
+                    <td class="p-3 font-mono text-slate-400">${b.datum}</td>
+                    <td class="p-3 text-slate-300">${b.vanNaar}</td>
+                    <td class="p-3 text-right font-mono font-bold text-sky-300">€${b.bedrag.toFixed(2)}</td>
+                    <td class="p-3">
+                        <button onclick="toggleBoekingStatus(${b.id})" class="px-2 py-0.5 rounded-full text-[10px] ${b.isGeboekt ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-amber-950 text-amber-300 border border-amber-800'}">
+                            ${b.isGeboekt ? 'Geboekt' : 'In Optie'}
+                        </button>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteBoeking(${b.id})" class="p-1 hover:bg-rose-950/50 text-rose-400 rounded"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function toggleBoekingStatus(id) {
+            const trip = getCurrentTrip();
+            const b = trip.boekingen.find(x => x.id === id);
+            if (b) {
+                b.isGeboekt = !b.isGeboekt;
+                saveStorage();
+                renderBoekingen();
+            }
+        }
+
+        function deleteBoeking(id) {
+            const trip = getCurrentTrip();
+            trip.boekingen = trip.boekingen.filter(b => b.id !== id);
+            saveStorage();
+            renderBoekingen();
+            showToast("Boeking verwijderd.");
+        }
+
+        function openAddBoekingModal() {
+            const html = `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Type Boeking</label>
+                        <select id="boeking-type" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                            <option value="Vlucht">✈️ Vlucht</option>
+                            <option value="Hotel">🏨 Hotel / Accommodation</option>
+                            <option value="Autohuur">🚗 Autohuur</option>
+                            <option value="Trein">🚆 Trein / OV</option>
+                            <option value="Excursie">🎟️ Excursie / Tour</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Leverancier / Maatschappij</label>
+                        <input type="text" id="boeking-leverancier" placeholder="bijv. KLM, Airbnb, Hertz" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Datum</label>
+                            <input type="date" id="boeking-datum" value="2026-02-10" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Kosten in EUR (€)</label>
+                            <input type="number" step="0.01" id="boeking-bedrag" value="150.00" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Van → Naar / Locatie</label>
+                        <input type="text" id="boeking-vannaar" placeholder="bijv. AMS → KRN of Stockholm City Hotel" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                </div>
+            `;
+            openModal("Boeking Toevoegen", html, () => {
+                const trip = getCurrentTrip();
+                const type = document.getElementById('boeking-type').value;
+                const leverancier = document.getElementById('boeking-leverancier').value;
+                const datum = document.getElementById('boeking-datum').value;
+                const bedrag = parseFloat(document.getElementById('boeking-bedrag').value) || 0;
+                const vanNaar = document.getElementById('boeking-vannaar').value;
+
+                if (!leverancier) return;
+
+                trip.boekingen.push({
+                    id: Date.now(),
+                    type, leverancier, datum, vanNaar, bedrag, isGeboekt: true
+                });
+
+                saveStorage();
+                closeModal();
+                renderBoekingen();
+                showToast("Boeking opgeslagen!");
+            });
+        }
+
+        function renderChecklist() {
+            const trip = getCurrentTrip();
+            const container = document.getElementById('checklist-items-container');
+            if (!container || !trip) return;
+
+            if (trip.checklist.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">Geen spullen op de paklijst.</p>`;
+                return;
+            }
+
+            container.innerHTML = trip.checklist.map(item => `
+                <div class="flex items-center justify-between p-3 bg-slate-900/80 rounded-xl border border-slate-800 hover:border-slate-700 transition">
+                    <label class="flex items-center gap-3 cursor-pointer text-xs text-slate-200">
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${item.id})" class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-sky-600 focus:ring-0">
+                        <span class="${item.done ? 'line-through text-slate-500' : 'font-medium'}">${item.text}</span>
+                    </label>
+                    <button onclick="deleteChecklistItem(${item.id})" class="text-slate-500 hover:text-rose-400 p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function toggleChecklistItem(id) {
+            const trip = getCurrentTrip();
+            const item = trip.checklist.find(i => i.id === id);
+            if (item) {
+                item.done = !item.done;
+                saveStorage();
+                renderChecklist();
+            }
+        }
+
+        function deleteChecklistItem(id) {
+            const trip = getCurrentTrip();
+            trip.checklist = trip.checklist.filter(i => i.id !== id);
+            saveStorage();
+            renderChecklist();
+        }
+
+        function openAddChecklistItemModal() {
+            const html = `
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Paklijst Item / Taak</label>
+                    <input type="text" id="checklist-item-text" placeholder="bijv. Paspoort & Visum" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                </div>
+            `;
+            openModal("Paklijst Item Toevoegen", html, () => {
+                const trip = getCurrentTrip();
+                const text = document.getElementById('checklist-item-text').value;
+                if (!text) return;
+
+                trip.checklist.push({ id: Date.now(), text, done: false });
+                saveStorage();
+                closeModal();
+                renderChecklist();
+                showToast("Item toegevoegd aan checklist!");
+            });
+        }
+
+        function openChecklistTemplateModal() {
+            const html = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-300">Selecteer een kant-en-klaar sjabloon voor je reis:</p>
+                    <button onclick="applyChecklistTemplate('winter')" class="w-full text-left p-3 bg-slate-950 hover:bg-slate-800 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <strong class="text-xs text-white block">❄️ Winter & Ski Expeditie</strong>
+                            <span class="text-[11px] text-slate-400">Thermokleding, skibril, handwarmers, zonnebrand</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400"></i>
+                    </button>
+                    <button onclick="applyChecklistTemplate('zomer')" class="w-full text-left p-3 bg-slate-950 hover:bg-slate-800 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <strong class="text-xs text-white block">🏖️ Zomer & Strandvakantie</strong>
+                            <span class="text-[11px] text-slate-400">Zwemkleding, zonnebril, handdoek, muggenspray</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400"></i>
+                    </button>
+                    <button onclick="applyChecklistTemplate('city')" class="w-full text-left p-3 bg-slate-950 hover:bg-slate-800 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <strong class="text-xs text-white block">🏙️ Stedentrip & Cultuur</strong>
+                            <span class="text-[11px] text-slate-400">Wandelschoenen, powerbank, museumkaarten, e-SIM</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400"></i>
+                    </button>
+                </div>
+            `;
+            openModal("Checklist Sjablonen", html, null);
+        }
+
+        function applyChecklistTemplate(type) {
+            const trip = getCurrentTrip();
+            let items = [];
+            if (type === 'winter') {
+                items = ["Thermokleding top & broek", "Wollen sokken", "Skibril & Zonnebril", "Hand- en voetwarmers", "Lippenbalsem & Zonnebrand", "Waterdichte handschoenen"];
+            } else if (type === 'zomer') {
+                items = ["Zwemkleding", "Strandlaken", "Zonnebrandcrème SPF50", "Zonnebril", "Muggenspray (DEET)", "Slippers"];
+            } else {
+                items = ["Comfortabele wandelschoenen", "Powerbank 10.000mAh", "Dagrugzak", "e-SIM / Databundel", "Compacte paraplu"];
+            }
+
+            items.forEach(txt => {
+                if (!trip.checklist.some(c => c.text === txt)) {
+                    trip.checklist.push({ id: Date.now() + Math.random(), text: txt, done: false });
+                }
+            });
+
+            saveStorage();
+            closeModal();
+            renderChecklist();
+            showToast("Sjabloon items toegevoegd!");
+        }
+
+        function openManageReizigersModal() {
+            const trip = getCurrentTrip();
+            const html = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-300">Voer de namen in van de reizigers (kommagescheiden):</p>
+                    <input type="text" id="reizigers-input" value="${trip.reizigers.join(', ')}" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                </div>
+            `;
+            openModal("Reizigers Beheren", html, () => {
+                const val = document.getElementById('reizigers-input').value;
+                const arr = val.split(',').map(s => s.trim()).filter(Boolean);
+                if (arr.length > 0) {
+                    trip.reizigers = arr;
+                    saveStorage();
+                    closeModal();
+                    renderAllViews();
+                    showToast("Reizigerslijst bijgewerkt!");
+                }
+            });
+        }
+
+        function renderReisinfo() {
+            const trip = getCurrentTrip();
+            const notes = document.getElementById('info-notes');
+            if (notes && trip) {
+                notes.value = trip.reisinfoNotes || '';
+            }
+        }
+
+        function saveReisinfo() {
+            const trip = getCurrentTrip();
+            const notes = document.getElementById('info-notes');
+            if (trip && notes) {
+                trip.reisinfoNotes = notes.value;
+                saveStorage();
+            }
+        }
+
+        function calculateCurrency() {
+            const amount = parseFloat(document.getElementById('curr-amount').value) || 0;
+            const currType = document.getElementById('curr-type').value;
+            const rate = EXCHANGE_RATES[currType] || 1.0;
+            const eur = amount / rate;
+            document.getElementById('curr-result').innerText = `€${eur.toFixed(2)}`;
+        }
+
+        async function fetchDestinationWeather() {
+            const trip = getCurrentTrip();
+            if (!trip) return;
+            const mainCity = trip.planning?.[0]?.plaats || "Kiruna";
+
+            const locEl = document.getElementById('weather-location');
+            const tempEl = document.getElementById('weather-temp');
+            if (locEl) locEl.innerText = mainCity;
+
+            try {
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(mainCity)}&count=1`);
+                const geoData = await geoRes.json();
+                
+                if (geoData && geoData.results && geoData.results.length > 0) {
+                    const lat = geoData.results[0].latitude;
+                    const lon = geoData.results[0].longitude;
+                    
+                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+                    const data = await res.json();
+                    if (data && data.current_weather) {
+                        const temp = Math.round(data.current_weather.temperature);
+                        const wind = data.current_weather.windspeed;
+                        if (tempEl) tempEl.innerText = `${temp}°C | Wind ${wind} km/h`;
+                        return;
+                    }
+                }
+            } catch (err) {}
+            if (tempEl) tempEl.innerText = `+18°C | Zonnig`;
+        }
+
+        function renderAllViews() {
+            renderTripSelector();
+            renderDashboard();
+            renderPlanning();
+            renderKosten();
+            renderGroupieTab();
+            renderBudget();
+            renderBoekingen();
+            renderChecklist();
+            renderReisinfo();
+        }
+
+        function openSaaSPricingModal() {
+            const html = `
+                <div class="space-y-4">
+                    <p class="text-xs text-slate-300">Upgrade je SaaS abonnement om meer reizen aan te maken en custom branding in te stellen:</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
+                            <h4 class="font-bold text-white text-xs">Free Plan</h4>
+                            <div class="text-xl font-mono font-extrabold text-slate-300">€0</div>
+                            <p class="text-[10px] text-slate-500">Max 1 reis, basisschema</p>
+                            <button onclick="selectPlan('Free')" class="w-full py-1.5 bg-slate-800 text-xs text-slate-300 rounded-lg font-semibold">Huidig Plan</button>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-xl border-2 border-sky-500 text-center space-y-2 relative shadow-lg shadow-sky-500/10">
+                            <span class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-sky-500 text-white text-[9px] font-bold rounded-full uppercase">Populair</span>
+                            <h4 class="font-bold text-white text-xs">Pro SaaS</h4>
+                            <div class="text-xl font-mono font-extrabold text-sky-400">€9<span class="text-xs text-slate-400">/mnd</span></div>
+                            <p class="text-[10px] text-slate-400">Onbeperkt reizen, Groupie Split, PDF Exports</p>
+                            <button onclick="selectPlan('Pro')" class="w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-xs text-white rounded-lg font-bold">Kies Pro</button>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-indigo-500/40 text-center space-y-2">
+                            <h4 class="font-bold text-white text-xs">Agency / Business</h4>
+                            <div class="text-xl font-mono font-extrabold text-indigo-400">€29<span class="text-xs text-slate-400">/mnd</span></div>
+                            <p class="text-[10px] text-slate-400">White-label branding, rollenbeheer & API</p>
+                            <button onclick="selectPlan('Business')" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs text-white rounded-lg font-bold">Kies Agency</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            openModal("SaaS Abonnementsbeheer & Billing Portal", html, null);
+        }
+
+        function selectPlan(plan) {
+            activePlan = plan;
+            document.getElementById('current-plan-display').innerText = `${plan} SaaS Plan`;
+            closeModal();
+            showToast(`Abonnement succesvol bijgewerkt naar ${plan}!`);
+        }
+
+        function openRoleSimulatorModal() {
+            const html = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-300">Simuleer verschillende multi-tenant gebruikersrollen in deze workspace:</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                            <input type="radio" name="role-option" value="Owner" ${activeRole === 'Owner' ? 'checked' : ''} class="text-sky-500">
+                            <div>
+                                <strong class="text-xs text-white block">Workspace Eigenaar (Admin)</strong>
+                                <span class="text-[11px] text-slate-400">Volledige lees- en schrijfrechten, financiën & instellingen</span>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                            <input type="radio" name="role-option" value="Editor" ${activeRole === 'Editor' ? 'checked' : ''} class="text-sky-500">
+                            <div>
+                                <strong class="text-xs text-white block">Medereiziger (Editor)</strong>
+                                <span class="text-[11px] text-slate-400">Kan planning en uitgaven toevoegen, geen beheerinstellingen</span>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
+                            <input type="radio" name="role-option" value="Viewer" ${activeRole === 'Viewer' ? 'checked' : ''} class="text-sky-500">
+                            <div>
+                                <strong class="text-xs text-white block">Publieke Kijker (Read-Only)</strong>
+                                <span class="text-[11px] text-slate-400">Alleen lezen voor vrienden/familie thuis</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            `;
+            openModal("Simuleer Gebruikersrol", html, () => {
+                const selected = document.querySelector('input[name="role-option"]:checked')?.value || 'Owner';
+                activeRole = selected;
+                document.getElementById('current-role-display').innerText = selected;
+                closeModal();
+                showToast(`Actieve rol gewijzigd naar "${selected}"`);
+            });
+        }
+
+        function openWhiteLabelModal() {
+            const html = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-300">Pas de branding van het SaaS portaal aan (White-Label):</p>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Applicatienaam / Merknaam</label>
+                        <input type="text" id="brand-name-input" value="${brandingConfig.appName}" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Custom Subdomein URL</label>
+                        <input type="text" id="brand-domain-input" value="reizen.jouwbedrijf.nl" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                </div>
+            `;
+            openModal("White-Label Branding Instellingen", html, () => {
+                const name = document.getElementById('brand-name-input').value || 'Globetrotter';
+                const domain = document.getElementById('brand-domain-input').value || 'reizen.jouwbedrijf.nl';
+                
+                brandingConfig.appName = name;
+                document.getElementById('app-brand-name').innerText = name;
+                document.getElementById('tenant-domain-display').innerText = domain;
+                closeModal();
+                showToast("White-Label instellingen opgeslagen!");
+            });
+        }
+
+        function openSecuritySettingsModal() {
+            const html = `
+                <div class="space-y-3">
+                    <p class="text-xs text-slate-300">Stel een 4- tot 6-cijferige PIN-code in om deze webapp op je apparaat te beveiligen:</p>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Nieuwe PIN-code (of leeg om op te heffen)</label>
+                        <input type="password" id="new-pin-input" maxlength="6" value="${appLockPin || ''}" placeholder="••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-center text-xl font-mono text-white">
+                    </div>
+                </div>
+            `;
+            openModal("PIN Security Instellingen", html, () => {
+                const pin = document.getElementById('new-pin-input').value;
+                if (pin) {
+                    appLockPin = pin;
+                    localStorage.setItem("gt_saas_pin", pin);
+                    showToast("PIN-beveiliging ingeschakeld!");
+                } else {
+                    appLockPin = null;
+                    localStorage.removeItem("gt_saas_pin");
+                    showToast("PIN-beveiliging uitgeschakeld!");
+                }
+                closeModal();
+            });
+        }
+
+        function unlockApp() {
+            const input = document.getElementById('pin-input').value;
+            if (input === appLockPin) {
+                document.getElementById('pin-lock-screen').classList.add('hidden');
+                document.getElementById('pin-error').classList.add('hidden');
+                document.getElementById('pin-input').value = '';
+            } else {
+                document.getElementById('pin-error').classList.remove('hidden');
+            }
+        }
+
+        function openSaaSMetricsModal() {
+            const html = `
+                <div class="space-y-4 text-xs">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-center">
+                            <span class="text-slate-400 block text-[10px]">Monthly Recurring Revenue (MRR)</span>
+                            <span class="text-xl font-mono font-bold text-emerald-400">€4,890.00</span>
+                        </div>
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-center">
+                            <span class="text-slate-400 block text-[10px]">Actieve SaaS Workspaces</span>
+                            <span class="text-xl font-mono font-bold text-sky-400">542</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <h4 class="font-bold text-white text-xs">SaaS Systeem Status</h4>
+                        <div class="flex justify-between text-slate-400"><span>API Latency:</span> <strong class="text-emerald-400 font-mono">24 ms</strong></div>
+                        <div class="flex justify-between text-slate-400"><span>Database Storage:</span> <strong class="text-sky-400 font-mono">1.2 GB / 50 GB</strong></div>
+                        <div class="flex justify-between text-slate-400"><span>Geocoding API Requests:</span> <strong class="text-amber-400 font-mono">12,450 / dag</strong></div>
+                    </div>
+                </div>
+            `;
+            openModal("SaaS Business & System Analytics", html, null);
+        }
+
+        function exportTravelPDF() {
+            window.print();
+        }
+
+        function exportAllCSV() {
+            const trip = getCurrentTrip();
+            if (!trip) return;
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Categorie,Omschrijving,Voorgeschoten Door,Bedrag Origineel,Valuta,Bedrag EUR\n";
+
+            trip.kosten.forEach(k => {
+                csvContent += `"${k.categorie}","${k.omschrijving}","${k.betaaldDoor}",${k.bedrag},"${k.valuta}",${k.omgerekendeEUR || k.bedrag}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `uitgaven_${trip.titel.toLowerCase().replace(/\s+/g, '_')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("CSV bestand gedownload!");
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tripsState, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `globetrotter_backup_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("Backup JSON succesvol geëxporteerd!");
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        tripsState = imported;
+                        currentTripId = tripsState[0].id;
+                        saveStorage();
+                        renderAllViews();
+                        showToast("Backup succesvol geïmporteerd!");
+                    }
+                } catch (err) {
+                    showToast("Fout bij importeren van bestand!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function promptResetTrip() {
+            if (tripsState.length <= 1) {
+                alert("Je kunt de laatste reis niet verwijderen.");
+                return;
+            }
+            if (confirm(`Weet je zeker dat je "${getCurrentTrip().titel}" wilt verwijderen?`)) {
+                tripsState = tripsState.filter(t => t.id !== currentTripId);
+                currentTripId = tripsState[0].id;
+                saveStorage();
+                renderAllViews();
+                showToast("Reis verwijderd.");
+            }
+        }
+
+        function openModal(title, bodyHtml, onSave) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = bodyHtml;
+            const saveBtn = document.getElementById('modal-save-btn');
+
+            if (onSave) {
+                saveBtn.classList.remove('hidden');
+                saveBtn.onclick = onSave;
+            } else {
+                saveBtn.classList.add('hidden');
+            }
+
+            document.getElementById('app-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById('app-modal').classList.add('hidden');
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast-msg');
+            document.getElementById('toast-text').innerText = text;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        function openAddTripModal() {
+            const html = `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Naam van de Reis</label>
+                        <input type="text" id="new-trip-titel" placeholder="bijv. Bali Backpacking 2026" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Type Reis</label>
+                        <select id="new-trip-type" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                            <option value="Roadtrip">🚗 Roadtrip</option>
+                            <option value="Backpacken">🎒 Backpacken</option>
+                            <option value="Stedentrip">🏙️ Stedentrip</option>
+                            <option value="Strand & Resort">🏖️ Strand & Resort</option>
+                            <option value="Ski Expeditie">❄️ Ski / Winter Expeditie</option>
+                            <option value="Cruise">🚢 Cruise</option>
+                            <option value="Zakenreis">💼 Zakenreis</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Startdatum Vertrek</label>
+                        <input type="date" id="new-trip-start" value="2026-06-01" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Reizigers (kommagescheiden)</label>
+                        <input type="text" id="new-trip-reizigers" value="Jan, Lisa" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                </div>
+            `;
+            openModal("Nieuwe Reis Toevoegen", html, () => {
+                const titel = document.getElementById('new-trip-titel').value;
+                if (!titel) return;
+                const type = document.getElementById('new-trip-type').value;
+                const start = document.getElementById('new-trip-start').value;
+                const reizigers = document.getElementById('new-trip-reizigers').value.split(',').map(r => r.trim()).filter(Boolean);
+
+                const newTrip = {
+                    id: `trip-${Date.now()}`,
+                    titel,
+                    type,
+                    beschrijving: `${type} avontuur`,
+                    startDatum: start,
+                    reizigers: reizigers.length ? reizigers : ["Ik"],
+                    planning: [],
+                    kosten: [],
+                    budget: { "Vliegtickets": 1000, "Verblijf": 1000, "Eten & Drinken": 500 },
+                    boekingen: [],
+                    checklist: [],
+                    reisinfoNotes: ""
+                };
+
+                tripsState.push(newTrip);
+                currentTripId = newTrip.id;
+                saveStorage();
+                closeModal();
+                renderAllViews();
+                showToast(`Reis "${titel}" succesvol aangemaakt!`);
+            });
+        }
+
+        function openAddDayModal() {
+            const html = `
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Datum</label>
+                            <input type="date" id="day-datum" value="2026-02-15" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Dag label</label>
+                            <input type="text" id="day-dag" value="Dag 4" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Plaats & Land (voor kaartpin)</label>
+                        <input type="text" id="day-plaats" placeholder="bijv. Narvik, Noorwegen" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Activiteit / Omschrijving</label>
+                        <input type="text" id="day-activiteit" placeholder="Fjord boottocht & wandeling" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                </div>
+            `;
+            openModal("Planning Dag Toevoegen", html, () => {
+                const trip = getCurrentTrip();
+                const datum = document.getElementById('day-datum').value;
+                const dag = document.getElementById('day-dag').value;
+                const plaats = document.getElementById('day-plaats').value;
+                const activiteit = document.getElementById('day-activiteit').value;
+
+                if (!plaats) return;
+
+                trip.planning.push({
+                    id: Date.now(),
+                    datum, dag, plaats, activiteit,
+                    van: "", naar: "", type: "Excursie"
+                });
+
+                saveStorage();
+                closeModal();
+                renderPlanning();
+                refreshRouteMap();
+                showToast("Dag toegevoegd aan planning!");
+            });
+        }
+
+        function openAddKostenModal() {
+            const trip = getCurrentTrip();
+            const html = `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-slate-400 text-xs mb-1">Omschrijving Uitgave</label>
+                        <input type="text" id="kosten-omschrijving" placeholder="Diner in lokaal restaurant" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Bedrag</label>
+                            <input type="number" step="0.01" id="kosten-bedrag" value="50.00" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Valuta</label>
+                            <select id="kosten-valuta" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                                <option value="EUR">EUR (€)</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="SEK">SEK (kr)</option>
+                                <option value="NOK">NOK (kr)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="JPY">JPY (¥)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Categorie</label>
+                            <select id="kosten-categorie" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                                <option value="Eten & Drinken">Eten & Drinken</option>
+                                <option value="Vervoer">Vervoer</option>
+                                <option value="Verblijf">Verblijf</option>
+                                <option value="Excursies">Excursies</option>
+                                <option value="Vliegtickets">Vliegtickets</option>
+                                <option value="Overig">Overig</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-xs mb-1">Voorgeschoten door</label>
+                            <select id="kosten-payer" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
+                                ${trip.reizigers.map(r => `<option value="${r}">${r}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+            openModal("Uitgave Toevoegen", html, () => {
+                const omschrijving = document.getElementById('kosten-omschrijving').value;
+                const bedrag = parseFloat(document.getElementById('kosten-bedrag').value) || 0;
+                const valuta = document.getElementById('kosten-valuta').value;
+                const categorie = document.getElementById('kosten-categorie').value;
+                const betaaldDoor = document.getElementById('kosten-payer').value;
+
+                if (!omschrijving) return;
+
+                const rate = EXCHANGE_RATES[valuta] || 1.0;
+                const omgerekendeEUR = bedrag / rate;
+
+                trip.kosten.push({
+                    id: Date.now(),
+                    omschrijving,
+                    categorie,
+                    bedrag,
+                    valuta,
+                    omgerekendeEUR,
+                    betaaldDoor,
+                    verdeeldOver: [...trip.reizigers]
+                });
+
+                saveStorage();
+                closeModal();
+                renderKosten();
+                renderDashboard();
+                renderGroupieTab();
+                renderBudget();
+                showToast("Uitgave succesvol opgeslagen!");
+            });
+        }
+
+        function deletePlanningDay(id) {
+            const trip = getCurrentTrip();
+            trip.planning = trip.planning.filter(d => d.id !== id);
+            saveStorage();
+            renderPlanning();
+            refreshRouteMap();
+        }
+
+        function deleteKostenItem(id) {
+            const trip = getCurrentTrip();
+            trip.kosten = trip.kosten.filter(k => k.id !== id);
+            saveStorage();
+            renderKosten();
+            renderDashboard();
+            renderGroupieTab();
+            renderBudget();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-sky-600', 'text-white');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-sky-600', 'text-white');
+                activeBtn.classList.remove('text-slate-400');
+            }
+
+            if (tabId === 'map') {
+                refreshRouteMap();
+            }
+        }
+
+        // Bootstrapping App on Load
+        window.addEventListener('load', () => {
+            initStorage();
+            renderAllViews();
+        });
+    </script>
+</body>
+</html>
