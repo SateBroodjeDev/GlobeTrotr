@@ -5,6 +5,7 @@ import {
   LAST_TRIP_KEY,
   LOGIN_PATH,
   REFRESH_TOKEN_KEY,
+  REGISTER_PATH,
 } from './constants.js';
 
 export function getStoredToken() {
@@ -25,9 +26,30 @@ export function clearTokens() {
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
+const SAFE_REDIRECT_FILES = new Set([
+  DASHBOARD_PATH.replace('./', ''),
+  LOGIN_PATH.replace('./', ''),
+  REGISTER_PATH.replace('./', ''),
+]);
+
+export function sanitizeRedirectTarget(value) {
+  if (!value) return DASHBOARD_PATH;
+
+  try {
+    const url = new URL(value, window.location.href);
+    const fileName = url.pathname.split('/').pop();
+    if (url.origin !== window.location.origin || !SAFE_REDIRECT_FILES.has(fileName)) {
+      return DASHBOARD_PATH;
+    }
+    return `./${fileName}${url.hash}`;
+  } catch {
+    return DASHBOARD_PATH;
+  }
+}
+
 export function getRedirectTarget() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('redirect') || DASHBOARD_PATH;
+  return sanitizeRedirectTarget(params.get('redirect'));
 }
 
 export function redirectToLogin() {
