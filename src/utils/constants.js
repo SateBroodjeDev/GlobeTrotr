@@ -7,8 +7,8 @@ export const DEFAULT_API_TIMEOUT = 10000;
 
 const normaliseBaseUrl = (value) => (value || '').replace(/\/$/, '');
 
-export const DASHBOARD_PATH = './globetrotter_saas_webapp_travel_planner (1).html';
-export const LOGIN_PATH = './index.html';
+export const DASHBOARD_PATH = './dashboard.html';
+export const LOGIN_PATH = './login.html';
 export const REGISTER_PATH = './register.html';
 
 export const API_BASE_URL = (() => {

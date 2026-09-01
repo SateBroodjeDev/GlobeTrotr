@@ -8,7 +8,11 @@ export const tripStore = createStore({
   days: [],
   bookings: [],
   checklist: [],
+  balances: {},
   settlements: [],
   settlementHistory: [],
+  settlement: null,
+  loading: false,
+  error: null,
   exchangeRates: { EUR: 1 },
 });

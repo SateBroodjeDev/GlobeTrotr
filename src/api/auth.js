@@ -1,11 +1,29 @@
 import { apiRequest } from './client.js';
 import { ENDPOINTS } from '../utils/constants.js';
 
-export function login(payload) {
+function normaliseLoginPayload(emailOrPayload, password) {
+  if (typeof emailOrPayload === 'object' && emailOrPayload !== null) return emailOrPayload;
+  return { email: emailOrPayload, password };
+}
+
+function normaliseRegisterPayload(payloadOrEmail, password, firstName, lastName) {
+  if (typeof payloadOrEmail === 'object' && payloadOrEmail !== null) return payloadOrEmail;
+  return {
+    email: payloadOrEmail,
+    password,
+    firstName,
+    lastName,
+    name: [firstName, lastName].filter(Boolean).join(' ').trim() || undefined,
+  };
+}
+
+export function login(payloadOrEmail, password) {
+  const payload = normaliseLoginPayload(payloadOrEmail, password);
   return apiRequest(ENDPOINTS.auth.login, { method: 'POST', body: payload, skipAuthRedirect: true });
 }
 
-export function register(payload) {
+export function register(payloadOrEmail, password, firstName, lastName) {
+  const payload = normaliseRegisterPayload(payloadOrEmail, password, firstName, lastName);
   return apiRequest(ENDPOINTS.auth.register, { method: 'POST', body: payload, skipAuthRedirect: true });
 }
 
@@ -20,3 +38,11 @@ export function refreshToken(payload) {
 export function getProfile() {
   return apiRequest(ENDPOINTS.auth.me);
 }
+
+export const authAPI = {
+  login,
+  register,
+  logout,
+  refreshToken,
+  getProfile,
+};

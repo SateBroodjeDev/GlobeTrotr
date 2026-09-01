@@ -17,9 +17,15 @@
       <p class="text-sm text-slate-400">Registreer en ga direct verder met je eerste workspace en trip.</p>
     </div>
     <form id="auth-form" class="space-y-4">
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Naam</label>
-        <input name="name" type="text" class="w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3 text-sm text-white focus:outline-none focus:border-sky-500" placeholder="Jouw naam">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Voornaam</label>
+          <input name="firstName" type="text" class="w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3 text-sm text-white focus:outline-none focus:border-sky-500" placeholder="Jan">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Achternaam</label>
+          <input name="lastName" type="text" class="w-full rounded-2xl bg-slate-950 border border-slate-700 px-4 py-3 text-sm text-white focus:outline-none focus:border-sky-500" placeholder="Jansen">
+        </div>
       </div>
       <div>
         <label class="block text-xs text-slate-400 mb-1">E-mailadres</label>
@@ -32,7 +38,7 @@
       <p id="auth-error" class="hidden text-sm text-rose-400 font-semibold"></p>
       <button id="auth-submit" type="submit" class="w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 px-4 py-3 font-bold text-white transition">Registreren</button>
     </form>
-    <p class="text-sm text-center text-slate-400">Heb je al een account? <a href="./index.html" class="text-sky-400 hover:text-sky-300 font-semibold">Log hier in</a></p>
+    <p class="text-sm text-center text-slate-400">Heb je al een account? <a href="./login.html" class="text-sky-400 hover:text-sky-300 font-semibold">Log hier in</a></p>
   </div>
   <script type="module" src="./src/auth-page.js"></script>
 </body>

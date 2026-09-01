@@ -997,6 +997,7 @@ async function openAddKostenModal() {
     const expense = normaliseExpense(unwrapObject(response, ['expense', 'data']) || payload, trip.kosten.length);
     const updatedTrip = { ...trip, kosten: [...trip.kosten, expense] };
     upsertCurrentTrip(updatedTrip);
+    await loadTripContext(trip.id, { showLoader: false });
     closeModal();
     renderAllViews();
     showToast('Uitgave succesvol opgeslagen!');
@@ -1111,6 +1112,7 @@ async function deleteKostenItem(id) {
   if (!trip || isViewerRole()) return;
   await expensesApi.deleteExpense(trip.id, id);
   upsertCurrentTrip({ ...trip, kosten: trip.kosten.filter((expense) => String(expense.id) !== String(id)) });
+  await loadTripContext(trip.id, { showLoader: false });
   renderAllViews();
 }
 
@@ -1169,10 +1171,7 @@ async function markSettlementPaid(settlementId) {
     return;
   }
   await settlementsApi.markAsPaid(trip.id, settlementId, { paid: true });
-  tripStore.setState({
-    settlements: tripStore.getState().settlements.map((item) => (String(item.id) === String(settlementId) ? { ...item, isPaid: true, paidAt: new Date().toISOString() } : item)),
-    settlementHistory: [...tripStore.getState().settlementHistory, { ...settlement, paidAt: new Date().toISOString() }],
-  });
+  await loadTripContext(trip.id, { showLoader: false });
   renderGroupieTab();
   renderGroupieSettlementSummary();
   showToast('Settlement gemarkeerd als betaald!');
@@ -1225,6 +1224,7 @@ async function loadWorkspace() {
     const payload = await workspacesApi.listWorkspaces();
     const workspaces = unwrapList(payload, ['workspaces']);
     workspace = normaliseWorkspace(workspaces[0] || authStore.getState().user?.workspace || {});
+    authStore.setState({ workspaces: workspaces.map(normaliseWorkspace) });
     if (workspace?.id) {
       const membersPayload = await workspacesApi.getMembers(workspace.id);
       members = unwrapList(membersPayload, ['members']).map(normaliseMember);
@@ -1233,6 +1233,7 @@ async function loadWorkspace() {
     workspace = normaliseWorkspace(authStore.getState().user?.workspace || {});
   }
   workspaceStore.setState({ currentWorkspace: workspace, members });
+  authStore.setState({ workspace });
   updateHeader();
 }
 

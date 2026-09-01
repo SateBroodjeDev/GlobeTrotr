@@ -14,10 +14,23 @@ export function createTrip(payload) {
   return apiRequest(ENDPOINTS.trips, { method: 'POST', body: payload });
 }
 
-export function updateTrip(tripId, payload) {
-  return apiRequest(`${ENDPOINTS.trips}/${tripId}`, { method: 'PATCH', body: payload });
+export async function updateTrip(tripId, payload) {
+  try {
+    return await apiRequest(`${ENDPOINTS.trips}/${tripId}`, { method: 'PUT', body: payload });
+  } catch (error) {
+    if (error?.status !== 404 && error?.status !== 405) throw error;
+    return apiRequest(`${ENDPOINTS.trips}/${tripId}`, { method: 'PATCH', body: payload });
+  }
 }
 
 export function deleteTrip(tripId) {
   return apiRequest(`${ENDPOINTS.trips}/${tripId}`, { method: 'DELETE' });
 }
+
+export const tripsAPI = {
+  create: (workspaceId, data = {}) => createTrip({ ...data, workspaceId }),
+  getAll: listTrips,
+  getById: getTrip,
+  update: updateTrip,
+  delete: deleteTrip,
+};
