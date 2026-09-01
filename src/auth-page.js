@@ -7,6 +7,14 @@ function getResponseUser(payload) {
   return payload?.user || payload?.data?.user || payload?.profile || null;
 }
 
+function getResponseToken(payload) {
+  return payload?.accessToken || payload?.token || payload?.data?.accessToken || payload?.data?.token || null;
+}
+
+function getResponseRefreshToken(payload) {
+  return payload?.refreshToken || payload?.data?.refreshToken || null;
+}
+
 function setFormState(button, loading) {
   button.disabled = loading;
   button.classList.toggle('opacity-60', loading);
@@ -33,13 +41,15 @@ async function handleLogin(form) {
   if (passwordError) throw new Error(passwordError);
 
   const payload = await authApi.login({ email, password });
-  if (!payload?.token) throw new Error('De login-response bevat geen token.');
+  const accessToken = getResponseToken(payload);
+  const refreshToken = getResponseRefreshToken(payload);
+  if (!accessToken) throw new Error('De login-response bevat geen token.');
 
-  storeTokens({ token: payload.token, refreshToken: payload.refreshToken });
+  storeTokens({ token: accessToken, refreshToken });
   authStore.setState({
     user: getResponseUser(payload),
-    token: payload.token,
-    refreshToken: payload.refreshToken || getStoredRefreshToken(),
+    token: accessToken,
+    refreshToken: refreshToken || getStoredRefreshToken(),
     isLoggedIn: true,
     role: payload?.user?.role || payload?.role || 'Viewer',
     plan: payload?.user?.plan || payload?.plan || 'Free',
@@ -48,23 +58,28 @@ async function handleLogin(form) {
 }
 
 async function handleRegister(form) {
-  const name = form.name.value.trim();
+  const firstName = form.firstName?.value?.trim() || '';
+  const lastName = form.lastName?.value?.trim() || '';
+  const name = form.name?.value?.trim() || `${firstName} ${lastName}`.trim();
   const email = form.email.value.trim();
   const password = form.password.value;
 
-  const nameError = requireValue(name, 'Naam');
-  if (nameError) throw new Error(nameError);
+  const firstNameError = requireValue(firstName || name, 'Voornaam');
+  if (firstNameError) throw new Error(firstNameError);
+  if (form.lastName && !lastName) throw new Error('Achternaam is verplicht.');
   const emailError = requireValue(email, 'E-mailadres') || (!validateEmail(email) ? 'Voer een geldig e-mailadres in.' : null);
   if (emailError) throw new Error(emailError);
   if (!validatePassword(password)) throw new Error('Gebruik minimaal 8 tekens voor je wachtwoord.');
 
-  const payload = await authApi.register({ name, email, password });
-  if (payload?.token) {
-    storeTokens({ token: payload.token, refreshToken: payload.refreshToken });
+  const payload = await authApi.register({ name, firstName: firstName || undefined, lastName: lastName || undefined, email, password });
+  const accessToken = getResponseToken(payload);
+  const refreshToken = getResponseRefreshToken(payload);
+  if (accessToken) {
+    storeTokens({ token: accessToken, refreshToken });
     authStore.setState({
       user: getResponseUser(payload),
-      token: payload.token,
-      refreshToken: payload.refreshToken || getStoredRefreshToken(),
+      token: accessToken,
+      refreshToken: refreshToken || getStoredRefreshToken(),
       isLoggedIn: true,
       role: payload?.user?.role || payload?.role || 'Owner',
       plan: payload?.user?.plan || payload?.plan || 'Free',

@@ -9,21 +9,29 @@ import {
 } from './constants.js';
 
 export function getStoredToken() {
-  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  return window.localStorage.getItem(AUTH_TOKEN_KEY) || window.localStorage.getItem('accessToken');
 }
 
 export function getStoredRefreshToken() {
-  return window.localStorage.getItem(REFRESH_TOKEN_KEY);
+  return window.localStorage.getItem(REFRESH_TOKEN_KEY) || window.localStorage.getItem('refreshToken');
 }
 
 export function storeTokens({ token, refreshToken }) {
-  if (token) window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  if (refreshToken) window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  if (token) {
+    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    window.localStorage.setItem('accessToken', token);
+  }
+  if (refreshToken) {
+    window.localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    window.localStorage.setItem('refreshToken', refreshToken);
+  }
 }
 
 export function clearTokens() {
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+  window.localStorage.removeItem('accessToken');
+  window.localStorage.removeItem('refreshToken');
 }
 
 const SAFE_REDIRECT_FILES = new Set([

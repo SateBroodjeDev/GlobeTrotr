@@ -4,7 +4,8 @@ import { clearTokens, getStoredRefreshToken, getStoredToken, redirectToLogin, st
 async function parseResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
-    return response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
   const text = await response.text();
   return text ? { message: text } : null;
@@ -24,9 +25,13 @@ async function refreshTokenRequest() {
   if (!response.ok) return null;
 
   const payload = await parseResponse(response);
-  if (payload?.token) {
-    storeTokens({ token: payload.token, refreshToken: payload.refreshToken || refreshToken });
-    return payload.token;
+  const nextToken = payload?.accessToken || payload?.token || payload?.data?.accessToken || payload?.data?.token;
+  const nextRefreshToken = payload?.refreshToken || payload?.data?.refreshToken || refreshToken;
+  if (nextToken) {
+    storeTokens({ token: nextToken, refreshToken: nextRefreshToken });
+    if (nextToken) window.localStorage.setItem('accessToken', nextToken);
+    if (nextRefreshToken) window.localStorage.setItem('refreshToken', nextRefreshToken);
+    return nextToken;
   }
 
   return null;
